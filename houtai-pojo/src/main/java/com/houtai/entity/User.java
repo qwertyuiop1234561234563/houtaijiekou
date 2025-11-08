@@ -1,13 +1,11 @@
 package com.houtai.entity;
 
-
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.LocalDate;
+import java.util.List;
 
 @Data
 @TableName("user")
@@ -19,19 +17,29 @@ public class User {
     private String name;
     private String password;
     private String avatar;
-    private String roles; // 数据库中是varchar，存储角色字符串
+    private String roles;
 
+    // ✅ 修复：使用 LocalDateTime 或者添加 Jackson 注解
     @TableField("create_time")
+    @JsonFormat(pattern = "HH:mm:ss") // 如果数据库存储的是时间
     private LocalTime createTime;
 
     @TableField("update_time")
+    @JsonFormat(pattern = "HH:mm:ss")
     private LocalTime updateTime;
 
-    // 用于业务逻辑的角色列表
-    @TableField(exist = false)
-    private java.util.List<String> roleList;
+    // 或者改为 LocalDateTime（推荐）
+    // @TableField("create_time")
+    // @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    // private LocalDateTime createTime;
 
-    // token字段（不存储到数据库）
+    // @TableField("update_time")
+    // @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    // private LocalDateTime updateTime;
+
+    @TableField(exist = false)
+    private List<String> roleList;
+
     @TableField(exist = false)
     private String token;
 }
