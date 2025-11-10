@@ -1,11 +1,14 @@
 package com.houtai.controller;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.houtai.entity.PageResult;
 import com.houtai.entity.Result;
 import com.houtai.entity.User;
 import com.houtai.dto.LoginDTO;
 import com.houtai.entity.PageParams;
 import com.houtai.service.UserService;
+import com.houtai.vo.UserVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -36,10 +39,12 @@ public class UserController {
         }
     }
 
+
+
     @GetMapping("/list")
-    public Result<Page<User>> getUserList(PageParams params) {
-        Page<User> page = userService.getUserList(params);
-        return Result.success(page);
+    public Result<PageResult<UserVO>> getUserList(PageParams params) {
+        PageResult<UserVO> result = userService.getUserList(params);
+        return Result.success(result);
     }
 
     @PostMapping("/add")

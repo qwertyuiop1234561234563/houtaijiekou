@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.houtai.mapper.UserMapper">
+
+    <select id="selectUserListWithRoles" resultType="com.houtai.vo.UserVO">
+        SELECT
+        u.*,
+        GROUP_CONCAT(r.name) as roleNamesStr
+        FROM user u
+        LEFT JOIN role r ON FIND_IN_SET(r.id, u.roles)
+        <where>
+            <if test="username != null and username != ''">
+                AND u.username LIKE CONCAT('%', #{username}, '%')
+            </if>
+        </where>
+        GROUP BY u.id
+    </select>
+
+</mapper>

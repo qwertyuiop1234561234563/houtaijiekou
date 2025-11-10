@@ -1,8 +1,8 @@
 package com.houtai.service.Impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.houtai.entity.PageResult;
 import com.houtai.entity.User;
 import com.houtai.mapper.UserMapper;
 import com.houtai.dto.LoginDTO;
@@ -10,25 +10,24 @@ import com.houtai.entity.PageParams;
 import com.houtai.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.houtai.utils.ThreadLocalUtils;
+import com.houtai.vo.UserVO;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
 
-    @Autowired
-    private StringRedisTemplate stringRedisTemplate;
-
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final StringRedisTemplate stringRedisTemplate;
+    private final ObjectMapper objectMapper;
+    private final UserMapper userMapper;
 
     private static final long TOKEN_EXPIRE = 7; // 7天
     private static final String TOKEN_PREFIX = "token:";
@@ -73,9 +72,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
     }
 
-
-        @Override
-        public User getUserInfo(String token) {
+    @Override
+    public User getUserInfo(String token) {
             log.info("根据token获取用户信息: {}", token);
 
             if (token == null || token.trim().isEmpty()) {
@@ -186,15 +184,36 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
-    public Page<User> getUserList(PageParams params) {
-        Page<User> page = new Page<>(params.getPage(), params.getPageSize());
-        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+    public PageResult<UserVO> getUserList(PageParams params) {
+        // 使用 PageHelper 开始分页
+        com.github.pagehelper.Page<UserVO> page = com.github.pagehelper.PageHelper.startPage(
+                params.getPage(), params.getPageSize());
 
-        if (params.getUsername() != null && !params.getUsername().isEmpty()) {
-            wrapper.like(User::getUsername, params.getUsername());
-        }
+        // 执行关联查询
+        List<UserVO> userList = userMapper.selectUserListWithRoles(params.getUsername());
 
-        return this.page(page, wrapper);
+        // 处理角色字段
+        userList.forEach(user -> {
+            // 处理角色ID列表
+            if (user.getRoles() != null && !user.getRoles().trim().isEmpty()) {
+                user.setRoleList(Arrays.asList(user.getRoles().split(",")));
+            }
+
+            // 处理角色名称列表
+            if (user.getRoleNamesStr() != null && !user.getRoleNamesStr().trim().isEmpty()) {
+                user.setRoleNames(Arrays.asList(user.getRoleNamesStr().split(",")));
+            }
+        });
+
+        // 构建返回结果
+        PageResult<UserVO> result = new PageResult<>();
+        result.setList(userList);
+        result.setTotal(page.getTotal());
+        result.setPage(params.getPage());
+        result.setPageSize(params.getPageSize());
+        result.setPages(page.getPages());
+
+        return result;
     }
 
     @Override
