@@ -2,7 +2,7 @@ package com.houtai.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 
 @Data
@@ -17,16 +17,17 @@ public class Role {
 
     private String description;
 
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createTime;
+    @TableField("create_time")
+    private LocalDate createTime;  // 你的数据库是 date 类型
 
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updateTime;
+    @TableField("update_time")
+    private LocalDate updateTime;  // 你的数据库是 date 类型
+
+    // 注意：你的数据库字段是 permission（单数），不是 permissions_str
+    @TableField("permission")
+    private String permissionStr;
 
     // 权限列表（非数据库字段）
     @TableField(exist = false)
     private List<String> permissions;
-
-    // 权限字符串（数据库字段，存储为逗号分隔）
-    private String permissionsStr;
 }

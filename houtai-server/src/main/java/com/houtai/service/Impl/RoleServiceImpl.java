@@ -1,4 +1,3 @@
-
 package com.houtai.service.Impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -9,10 +8,7 @@ import com.houtai.entity.Role;
 import com.houtai.entity.RolePageParams;
 import com.houtai.mapper.RoleMapper;
 import com.houtai.service.RoleService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -23,47 +19,63 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements RoleService {
-
-    private final StringRedisTemplate stringRedisTemplate;
-
-    // 预定义的权限列表
-    private static final List<String> ALL_PERMISSIONS = Arrays.asList(
-            "user:add", "user:edit", "user:delete", "user:view",
-            "role:add", "role:edit", "role:delete", "role:view",
-            "*"
-    );
 
     @Override
     public PageResult<Role> getRoleList(RolePageParams params) {
-        log.info("查询角色列表: {}", params);
+        log.info("查询角色列表: page={}, pageSize={}, name={}, code={}",
+                params.getPage(), params.getPageSize(), params.getName(), params.getCode());
 
-        // 使用 PageHelper 开始分页
-        com.github.pagehelper.Page<Role> page = PageHelper.startPage(
-                params.getPage(), params.getPageSize());
+        try {
+            // 使用 PageHelper 开始分页
+            com.github.pagehelper.Page<Role> page = PageHelper.startPage(
+                    params.getPage(), params.getPageSize());
 
-        // 执行查询
-        List<Role> roleList = this.baseMapper.selectRoleList(params);
+            // 创建查询条件
+            LambdaQueryWrapper<Role> wrapper = new LambdaQueryWrapper<>();
 
-        // 处理权限字段
-        roleList.forEach(role -> {
-            if (StringUtils.hasText(role.getPermissionsStr())) {
-                List<String> permissions = Arrays.stream(role.getPermissionsStr().split(","))
-                        .collect(Collectors.toList());
-                role.setPermissions(permissions);
+            if (StringUtils.hasText(params.getName())) {
+                wrapper.like(Role::getName, params.getName().trim());
             }
-        });
 
-        // 构建返回结果
-        PageResult<Role> result = new PageResult<>();
-        result.setList(roleList);
-        result.setTotal(page.getTotal());
-        result.setPage(params.getPage());
-        result.setPageSize(params.getPageSize());
-        result.setPages(page.getPages());
+            if (StringUtils.hasText(params.getCode())) {
+                wrapper.like(Role::getCode, params.getCode().trim());
+            }
 
-        return result;
+            wrapper.orderByDesc(Role::getCreateTime);
+
+            // 执行查询
+            List<Role> roleList = this.list(wrapper);
+            log.info("查询到 {} 条角色记录", roleList.size());
+
+            // 处理权限字段 - 将 permission 转换为 permissions 列表
+            roleList.forEach(role -> {
+                if (StringUtils.hasText(role.getPermissionStr())) {
+                    List<String> permissions = Arrays.stream(role.getPermissionStr().split(","))
+                            .map(String::trim)
+                            .collect(Collectors.toList());
+                    role.setPermissions(permissions);
+                } else {
+                    role.setPermissions(List.of());
+                }
+                log.debug("角色: {}, 权限: {}", role.getName(), role.getPermissions());
+            });
+
+            // 构建返回结果
+            PageResult<Role> result = new PageResult<>();
+            result.setList(roleList);
+            result.setTotal(page.getTotal());
+            result.setPage(params.getPage());
+            result.setPageSize(params.getPageSize());
+            result.setPages(page.getPages());
+
+            log.info("分页结果: total={}, pages={}", result.getTotal(), result.getPages());
+            return result;
+
+        } catch (Exception e) {
+            log.error("查询角色列表失败", e);
+            throw new RuntimeException("查询角色列表失败: " + e.getMessage());
+        }
     }
 
     @Override
@@ -79,14 +91,14 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
             throw new RuntimeException("角色编码已存在");
         }
 
-        // 处理权限字段
+        // 处理权限字段 - 使用 permissionStr 而不是 permissionsStr
         if (role.getPermissions() != null && !role.getPermissions().isEmpty()) {
-            role.setPermissionsStr(String.join(",", role.getPermissions()));
+            role.setPermissionStr(String.join(",", role.getPermissions()));
         }
 
         this.save(role);
         log.info("角色添加成功，ID: {}", role.getId());
-        return role.getId();
+        return role.getId().longValue();
     }
 
     @Override
@@ -107,9 +119,9 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
 
         // 处理权限字段
         if (role.getPermissions() != null && !role.getPermissions().isEmpty()) {
-            role.setPermissionsStr(String.join(",", role.getPermissions()));
+            role.setPermissionStr(String.join(",", role.getPermissions()));
         } else {
-            role.setPermissionsStr("");
+            role.setPermissionStr("");
         }
 
         boolean result = this.updateById(role);
@@ -123,13 +135,7 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
     @Transactional
     public boolean deleteRole(Long id) {
         log.info("删除角色: {}", id);
-
-        // 检查角色是否被用户使用（这里需要根据你的业务逻辑实现）
-        // if (isRoleInUse(id)) {
-        //     throw new RuntimeException("该角色已被使用，无法删除");
-        // }
-
-        boolean result = this.removeById(id);
+        boolean result = this.removeById(id.intValue());
         if (result) {
             log.info("角色删除成功: {}", id);
         }
@@ -140,15 +146,8 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
     @Transactional
     public boolean batchDeleteRoles(List<Long> ids) {
         log.info("批量删除角色: {}", ids);
-
-        // 检查角色是否被使用
-        // for (Long id : ids) {
-        //     if (isRoleInUse(id)) {
-        //         throw new RuntimeException("角色ID " + id + " 已被使用，无法删除");
-        //     }
-        // }
-
-        boolean result = this.removeByIds(ids);
+        List<Integer> intIds = ids.stream().map(Long::intValue).collect(Collectors.toList());
+        boolean result = this.removeByIds(intIds);
         if (result) {
             log.info("批量删除角色成功: {}", ids);
         }
@@ -157,7 +156,10 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
 
     @Override
     public List<String> getAllPermissions() {
-        return ALL_PERMISSIONS;
+        return Arrays.asList(
+                "user:add", "user:edit", "user:delete", "user:view",
+                "role:add", "role:edit", "role:delete", "role:view", "*"
+        );
     }
 
     @Override
@@ -165,16 +167,16 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
     public boolean updateRolePermissions(Long roleId, List<String> permissions) {
         log.info("更新角色权限: {}, permissions: {}", roleId, permissions);
 
-        Role role = this.getById(roleId);
+        Role role = this.getById(roleId.intValue());
         if (role == null) {
             throw new RuntimeException("角色不存在");
         }
 
         if (permissions != null && !permissions.isEmpty()) {
-            role.setPermissionsStr(String.join(",", permissions));
+            role.setPermissionStr(String.join(",", permissions));
             role.setPermissions(permissions);
         } else {
-            role.setPermissionsStr("");
+            role.setPermissionStr("");
             role.setPermissions(null);
         }
 
@@ -183,14 +185,5 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
             log.info("角色权限更新成功: {}", roleId);
         }
         return result;
-    }
-
-    /**
-     * 检查角色是否被用户使用（需要根据你的业务实现）
-     */
-    private boolean isRoleInUse(Long roleId) {
-        // 这里需要查询用户表，检查是否有用户使用了这个角色
-        // 示例：return userMapper.countByRoleId(roleId) > 0;
-        return false;
     }
 }

@@ -22,4 +22,9 @@ public interface UserMapper extends BaseMapper<User> {
      */
     @Select("SELECT r.name FROM role r WHERE FIND_IN_SET(r.id, #{roles})")
     List<String> selectRoleNamesByUserRoles(@Param("roles") String roles);
+    /**
+     * 根据角色ID查询用户数量
+     */
+    @Select("SELECT COUNT(*) FROM user WHERE FIND_IN_SET(#{roleId}, roles)")
+    int countByRoleId(Long roleId);
 }

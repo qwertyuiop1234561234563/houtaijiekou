@@ -4,7 +4,7 @@
 
     <select id="selectRoleList" resultType="com.houtai.entity.Role">
         SELECT
-        id, name, code, description, create_time, update_time, permissions_str
+        id, name, code, description, create_time, update_time, permission
         FROM role
         <where>
             <if test="params.name != null and params.name != ''">

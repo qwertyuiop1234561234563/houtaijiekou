@@ -1,9 +1,7 @@
 package com.houtai.controller;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.houtai.entity.PageResult;
-import com.houtai.entity.Result;
+import com.houtai.entity.ApiResponse;
 import com.houtai.entity.User;
 import com.houtai.dto.LoginDTO;
 import com.houtai.entity.PageParams;
@@ -20,48 +18,48 @@ public class UserController {
     private UserService userService;
 
     @PostMapping("/login")
-    public Result<String> login(@RequestBody LoginDTO loginDTO) {
+    public ApiResponse<String> login(@RequestBody LoginDTO loginDTO) {
         try {
             String token = userService.login(loginDTO);
-            return Result.success(token);
+            return ApiResponse.success(token);
         } catch (RuntimeException e) {
-            return Result.error(e.getMessage());
+            return ApiResponse.error(e.getMessage());
         }
     }
 
     @GetMapping("/info")
-    public Result<User> getUserInfo() {
+    public ApiResponse<User> getUserInfo() {
         try {
             User user = userService.getCurrentUserInfo();
-            return Result.success(user);
+            return ApiResponse.success(user);
         } catch (RuntimeException e) {
-            return Result.error(e.getMessage());
+            return ApiResponse.error(e.getMessage());
         }
     }
 
 
 
     @GetMapping("/list")
-    public Result<PageResult<UserVO>> getUserList(PageParams params) {
+    public ApiResponse<PageResult<UserVO>> getUserList(PageParams params) {
         PageResult<UserVO> result = userService.getUserList(params);
-        return Result.success(result);
+        return ApiResponse.success(result);
     }
 
     @PostMapping("/add")
-    public Result<Long> addUser(@RequestBody User user) {
+    public ApiResponse<Long> addUser(@RequestBody User user) {
         Long id = userService.addUser(user);
-        return Result.success(id);
+        return ApiResponse.success(id);
     }
 
     @PostMapping("/update")
-    public Result<Void> updateUser(@RequestBody User user) {
+    public ApiResponse<Void> updateUser(@RequestBody User user) {
         boolean success = userService.updateUser(user.getId(), user);
-        return success ? Result.success() : Result.error("更新失败");
+        return success ? ApiResponse.success() : ApiResponse.error("更新失败");
     }
 
     @PostMapping("/delete")
-    public Result deleteUser(@RequestBody User user) {
+    public ApiResponse deleteUser(@RequestBody User user) {
         boolean success = userService.deleteUser(user.getId());
-        return success ? Result.success("删除成功") : Result.error("删除失败");
+        return success ? ApiResponse.success("删除成功") : ApiResponse.error("删除失败");
     }
 }
